@@ -16,7 +16,7 @@ enum CaptureRegex {
     static let gpuFrequency = regex(#"GPU HW active frequency:\s+([0-9])"#)
     static let gpuActivity = regex(#"GPU HW active residency:\s+([0-9])"#)
     
-
+    static let thermalPressure = regex(#"Current pressure level:\s+([a-zA-Z]+)"#)
 
 
     private static func regex(_ pattern: String) -> NSRegularExpression {
@@ -94,6 +94,8 @@ struct Statistics {
     var gpuFrequency : Int = 0
     var gpuUtility: Double = 0
 
+    var thermalPressure: String = "Nominal"
+
     // Power
     var CPUPower = LimitedArray<Int>(size: 30)
     var GPUPower = LimitedArray<Int>(size: 30)
@@ -165,6 +167,12 @@ func CaptureGPU(from line: String, into stats: inout Statistics) {
     }
 }
 
+func CaputreThermalPressure(from line: String, into stats: inout Statistics) {
+    if let pressure = capture(CaptureRegex.thermalPressure, in: line) {
+        stats.thermalPressure = pressure
+    }
+}
+
 @available(macOS 12, *)
 func StreamPowerBlocks() -> AsyncStream<String> {
     AsyncStream { continuation in
@@ -192,6 +200,11 @@ func streamPowerMetrics() -> AsyncStream<String> {
         AsyncStream { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/powermetrics")
+            process.arguments = [
+                "/usr/bin/powermetrics",
+                "--samplers",
+                "cpu_power,gpu_power,thermal"
+            ]
 
             let pipe = Pipe()
             process.standardOutput = pipe
