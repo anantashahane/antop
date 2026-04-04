@@ -7,7 +7,7 @@ Antop is a lightweight, high-performance macOS CLI tool for monitoring system po
 
 * This is the initial phase of the project. The main goal is to:
 	* ✅  Stream powermetrics data in real-time.
-	* ⏳  Parse and process metrics incrementally.
+	* ✅  Parse and process metrics incrementally.
 	* ⏳  Present the relevant graphs in terminal.
 	* 🤔  Parameterise Executable. 
 
@@ -20,14 +20,15 @@ Antop is a lightweight, high-performance macOS CLI tool for monitoring system po
 
 Antop addresses these issues by streaming and processing data incrementally, using Swift for both speed and energy efficiency.
 
+## Current Progress....
+![Screenshot](src/screenshot.png)
 
 ## 🙏 Appreciation
 
 A huge thank you to everyone who supports, inspires, or provides feedback on this project. Your encouragement keeps this initiative moving forward.
 
 ## 📦 Next Steps
-*	Implement rolling buffers for CPU, GPU, and battery metrics
-*	Provide real-time summaries and averages
+*   Power graphs.
 *	Homebrew distribution for easy installation
 
 ## 🛠️ How to Run (Development)
@@ -38,10 +39,10 @@ git clone https://github.com/anantashahane/antop.git
 cd antop
 ```
 ###  Build and run
-```
-sudo swift run
-```
 * ⚠️ `powermetrics` requires sudo, so you may need:
+  ```
+  sudo swift run
+  ```
 
 
 ## 📝 Contribution
