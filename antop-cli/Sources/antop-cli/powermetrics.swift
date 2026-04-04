@@ -237,6 +237,17 @@ func streamPowerMetrics() -> AsyncStream<String> {
 }
 
 //#MARK: -UI Code
+
+//┌ ┐ └ ┘ ─ │
+enum UIBlock: String {
+    case TopLeftCorner = "┌"
+    case TopRightCorner = "┐"
+    case BottomLeftCorner = "└"
+    case BottomRightCorner = "┘"
+    case HorizontalLine = "─"
+    case VerticalLine = "│"
+}
+
 struct Winsize {
     var ws_row: UInt16 = 0
     var ws_col: UInt16 = 0
@@ -244,7 +255,6 @@ struct Winsize {
     var ws_ypixel: UInt16 = 0
 }
 
-// Function to get terminal size
 func getTerminalSize() -> (rows: Int, cols: Int)? {
     var w = winsize()
     let result = ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &w)
@@ -254,36 +264,39 @@ func getTerminalSize() -> (rows: Int, cols: Int)? {
     return (rows: Int(w.ws_row), cols: Int(w.ws_col))
 }
 
-func GetLabel(text: String, prefix: String = "| ", isTab: Bool, width: Int) -> String {
-    var return_text = ""
+func GetLabel(text: String, depth: Int, width: Int, isTab: Bool) -> String {
     if isTab {
-        return_text = "\(prefix)- \(text)\(String(repeating: "-", count: abs(width - text.count - (2 * prefix.count) - 2)))\(prefix)"
-    } else {
-        return_text = "\(prefix) \(text)\(String(repeating: " ", count: abs(width - text.count - (2 * prefix.count) - 1)))\(prefix)"
+        var returnString = String(repeating: UIBlock.VerticalLine.rawValue, count: depth) + UIBlock.TopLeftCorner.rawValue
+        returnString += " \(text)\(String(repeating: UIBlock.HorizontalLine.rawValue, count: width - (2 * depth) - 3 - text.count))\(UIBlock.TopRightCorner.rawValue)\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
+        return returnString
     }
-    return return_text
+    return "\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth)) \(text)\(String(repeating: " ", count: width - (2 * depth) - 1 - text.count))\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
 }
 
-func GetBar(ratio: Double, width: Int, prefix: String) -> String {
+func GetBottomRule(depth: Int, width: Int) -> String {
+    let extrimities = String(repeating: UIBlock.VerticalLine.rawValue, count: depth - 1)
+    return (extrimities + 
+            UIBlock.BottomLeftCorner.rawValue + 
+            String(repeating: UIBlock.HorizontalLine.rawValue, count: width - (2 * depth)) +
+            UIBlock.BottomRightCorner.rawValue + 
+            extrimities
+            )
+}
+
+func GetBar(ratio: Double, width: Int, depth: Int) -> String {
     let clampedRatio = max(0, min(100, ratio)) // ensure 0..100
-    let len = width - (prefix.count * 2)  // inner bar length
+    let len = width - (2 * depth)  // inner bar length
     let filledLength = Int(Double(len) * clampedRatio / 100.0)
     let emptyLength = len - filledLength
-
-    // Top bar
-    let top = prefix + String(repeating: "█", count: filledLength) + String(repeating: "░", count: emptyLength) + prefix
-
-    // Bottom separator
-    let bottom = prefix + String(repeating: "-", count: len) + prefix
-
-    return top + bottom
+    let prefix = String(repeating: UIBlock.VerticalLine.rawValue, count: depth) 
+    return prefix + String(repeating: "█", count: filledLength) + String(repeating: "░", count: emptyLength) + prefix
 }
 
-func GetLabelledBar(label: String, percentage: Double, width: Int, prefix: String = "|") -> String {
-    var text = ""
+func GetLabelledBar(label: String, percentage: Double, width: Int, depth: Int) -> String {
+    var text = GetLabel(text: label, depth: depth, width: width, isTab: true)
     // Header.
-    text += GetLabel(text: label, prefix: prefix + prefix, isTab: true, width: width)
-    text += "\(GetBar(ratio:percentage, width: width, prefix: prefix + prefix))"
+    text += GetBar(ratio:percentage, width: width, depth: depth + 1)
+    text += GetBottomRule(depth: depth + 1, width: width)
     return text
 }
 
@@ -291,6 +304,7 @@ func GetLabelledBar(label: String, percentage: Double, width: Int, prefix: Strin
 func PresentData() async {
     var stats = Statistics()
     let clock = ContinuousClock()
+    print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
     for await line in StreamPowerBlocks() {
         let eta = clock.measure {
             CaptureMachineName(from: line, into: &stats)
@@ -301,12 +315,22 @@ func PresentData() async {
             CaputreThermalPressure(from: line, into: &stats)
         }
         if let (rows, column) = getTerminalSize() {
-            print("\u{001B}[2J\u{001B}[H")
-            print(GetLabel(text: stats.machineName ?? "Unknown", prefix: "|", isTab: true, width: column))
-            print(GetLabel(text: "Thermal pressure: \(stats.thermalPressure)", prefix: "|", isTab: false, width: column))
-            print(GetLabelledBar(label: "E-Core Cluster: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz", percentage: stats.highEffeciencyUtility, width: column))
-            print(GetLabelledBar(label: "P-Core Cluster: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz", percentage: stats.highPerformanceUtility, width: column))
-            print(GetLabelledBar(label: "GPU Usage: \(stats.gpuUtility)% @\(stats.gpuFrequency) MHz", percentage: stats.gpuUtility, width: column))
+            print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
+            print(
+                GetLabel(text: stats.machineName ?? "Unknown", depth: 0, width: column, isTab: true)
+            )
+            print(
+                GetLabel(text: "Thermal pressure: \(stats.thermalPressure)", depth: 1, width: column, isTab: false)
+            )
+            print(
+                GetLabelledBar(label: "E-Core Cluster: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz", percentage: stats.highEffeciencyUtility, width: column, depth: 1)
+            )
+            print(
+                GetLabelledBar(label: "P-Core Cluster: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz", percentage: stats.highPerformanceUtility, width: column, depth: 1)
+            )
+            print(
+                GetLabelledBar(label: "GPU Usage: \(stats.gpuUtility)% @\(stats.gpuFrequency) MHz", percentage: stats.gpuUtility, width: column, depth: 1)
+            )
             print("  CPU Power: \(stats.CPUPower.get().last ?? 0) mW; average \(stats.CPUPower.getAverage())mW; peak \(stats.CPUPower.getMax()) mW")
             print("+ GPU Power: \(stats.GPUPower.get().last ?? 0) mW; average \(stats.GPUPower.getAverage())mW; peak \(stats.GPUPower.getMax()) mW")
             print("+ ANE Usage: \(stats.ANEPower.get().last ?? 0) mW; average \(stats.ANEPower.getAverage())mW; peak \(stats.ANEPower.getMax()) mW")
