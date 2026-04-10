@@ -46,7 +46,7 @@ class LimitedArray<T: Comparable & Numeric> : CustomStringConvertible {
         if let floatingData = data as? [Double] {
             return floatingData.reduce(0, +) / Double(floatingData.count)
         } else if let integerData = data as? [Int] {
-            return Double(integerData.reduce(0, +)) / Double(integerData.count)
+            return (Double(integerData.reduce(0, +)) / Double(integerData.count) * 100).rounded() / 100
         }
         return 0
     }
@@ -74,10 +74,10 @@ struct Statistics {
     var thermalPressure: String = "Nominal"
 
     // Power
-    var CPUPower = LimitedArray<Int>(size: 30)
-    var GPUPower = LimitedArray<Int>(size: 30)
-    var PackagePower = LimitedArray<Int>(size: 30)
-    var ANEPower = LimitedArray<Int>(size: 30)
+    var CPUPower = LimitedArray<Int>(size: 256)
+    var GPUPower = LimitedArray<Int>(size: 256)
+    var PackagePower = LimitedArray<Int>(size: 256)
+    var ANEPower = LimitedArray<Int>(size: 256)
 }
 
 // #MARK: Regex captures from powermetrics
@@ -204,7 +204,9 @@ func streamPowerMetrics() -> AsyncStream<String> {
         process.arguments = [
             "/usr/bin/powermetrics",
             "--samplers",
-            "cpu_power,gpu_power,thermal"
+            "cpu_power,gpu_power,thermal",
+            "-i",
+            "1000"
         ]
 
         let pipe = Pipe()
@@ -264,7 +266,25 @@ func getTerminalSize() -> (rows: Int, cols: Int)? {
     return (rows: Int(w.ws_row), cols: Int(w.ws_col))
 }
 
-func GetLabel(text: String, depth: Int, width: Int, isTab: Bool) -> String {
+struct CursorPosition {
+    var x : Int
+    var y: Int
+
+    func copy() -> CursorPosition {
+        CursorPosition(x: self.x, y: self.y)
+    }
+}
+
+func moveCursor(row: Int, col: Int, position: inout CursorPosition) {
+    print("\u{1B}[\(row);\(col)H", terminator: "")
+    position.x = col
+    position.y = row
+}
+
+
+func GetLabel(text: String, depth: Int, width: Int, isTab: Bool, position: inout CursorPosition) -> String {
+    position.x = 0
+    position.y += 1
     if isTab {
         var returnString = String(repeating: UIBlock.VerticalLine.rawValue, count: depth) + UIBlock.TopLeftCorner.rawValue
         returnString += " \(text)\(String(repeating: UIBlock.HorizontalLine.rawValue, count: width - (2 * depth) - 3 - text.count))\(UIBlock.TopRightCorner.rawValue)\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
@@ -273,7 +293,9 @@ func GetLabel(text: String, depth: Int, width: Int, isTab: Bool) -> String {
     return "\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth)) \(text)\(String(repeating: " ", count: width - (2 * depth) - 1 - text.count))\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
 }
 
-func GetBottomRule(depth: Int, width: Int) -> String {
+func GetBottomRule(depth: Int, width: Int, position: inout CursorPosition) -> String {
+    position.x = 0
+    position.y += 1
     let extrimities = String(repeating: UIBlock.VerticalLine.rawValue, count: depth - 1)
     return (extrimities + 
             UIBlock.BottomLeftCorner.rawValue + 
@@ -283,7 +305,9 @@ func GetBottomRule(depth: Int, width: Int) -> String {
             )
 }
 
-func GetBar(ratio: Double, width: Int, depth: Int) -> String {
+func GetBar(ratio: Double, width: Int, depth: Int, position: inout CursorPosition) -> String {
+    position.x = 0
+    position.y += 1
     let clampedRatio = max(0, min(100, ratio)) // ensure 0..100
     let len = width - (2 * depth)  // inner bar length
     let filledLength = Int(Double(len) * clampedRatio / 100.0)
@@ -292,51 +316,51 @@ func GetBar(ratio: Double, width: Int, depth: Int) -> String {
     return prefix + String(repeating: "█", count: filledLength) + String(repeating: "░", count: emptyLength) + prefix
 }
 
-func GetLabelledBar(label: String, percentage: Double, width: Int, depth: Int) -> String {
-    var text = GetLabel(text: label, depth: depth, width: width, isTab: true)
-    // Header.
-    text += GetBar(ratio:percentage, width: width, depth: depth + 1)
-    text += GetBottomRule(depth: depth + 1, width: width)
+func GetLabelledBar(label: String, percentage: Double, width: Int, depth: Int, position: inout CursorPosition) -> String {
+    var text = GetLabel(text: label, depth: depth, width: width, isTab: true, position: &position)
+    text += GetBar(ratio:percentage, width: width, depth: depth + 1, position: &position)
+    text += GetBottomRule(depth: depth + 1, width: width, position: &position)
     return text
 }
 
-@available(macOS 13, *)
+@available(macOS 12, *)
 func PresentData() async {
     var stats = Statistics()
-    let clock = ContinuousClock()
-    print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
+    var cursorPosition = CursorPosition(x: 0, y: 1)
+    print("\u{001B}[2J") //Clear screen
     for await line in StreamPowerBlocks() {
-        let eta = clock.measure {
-            CaptureMachineName(from: line, into: &stats)
-            CaptureEfficiencyCore(from: line, into: &stats)
-            CapturePerformanceCore(from: line, into: &stats)
-            CaptureGPU(from: line, into: &stats)
-            CapturePower(from: line, into: &stats)
-            CaputreThermalPressure(from: line, into: &stats)
-        }
+        moveCursor(row: 0, col: 0, position: &cursorPosition)
+        CaptureMachineName(from: line, into: &stats)
+        CaptureEfficiencyCore(from: line, into: &stats)
+        CapturePerformanceCore(from: line, into: &stats)
+        CaptureGPU(from: line, into: &stats)
+        CapturePower(from: line, into: &stats)
+        CaputreThermalPressure(from: line, into: &stats)
         if let (rows, column) = getTerminalSize() {
             print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
+            print(rows, column)
             print(
-                GetLabel(text: stats.machineName ?? "Unknown", depth: 0, width: column, isTab: true)
+                GetLabel(text: stats.machineName ?? "Unknown", depth: 0, width: column, isTab: true, position: &cursorPosition)
             )
             print(
-                GetLabel(text: "Thermal pressure: \(stats.thermalPressure)", depth: 1, width: column, isTab: false)
+                GetLabel(text: "Thermal pressure: \(stats.thermalPressure)", depth: 1, width: column, isTab: false, position: &cursorPosition)
             )
             print(
-                GetLabelledBar(label: "E-Core Cluster: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz", percentage: stats.highEffeciencyUtility, width: column, depth: 1)
+                GetLabelledBar(label: "E-Core Cluster: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz", percentage: stats.highEffeciencyUtility, width: column, depth: 1, position: &cursorPosition)
             )
             print(
-                GetLabelledBar(label: "P-Core Cluster: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz", percentage: stats.highPerformanceUtility, width: column, depth: 1)
+                GetLabelledBar(label: "P-Core Cluster: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz", percentage: stats.highPerformanceUtility, width: column, depth: 1, position: &cursorPosition)
             )
             print(
-                GetLabelledBar(label: "GPU Usage: \(stats.gpuUtility)% @\(stats.gpuFrequency) MHz", percentage: stats.gpuUtility, width: column, depth: 1)
+                GetLabelledBar(label: "GPU Usage: \(stats.gpuUtility)% @\(stats.gpuFrequency) MHz", percentage: stats.gpuUtility, width: column, depth: 1, position: &cursorPosition)
             )
-            print("  CPU Power: \(stats.CPUPower.get().last ?? 0) mW; average \(stats.CPUPower.getAverage())mW; peak \(stats.CPUPower.getMax()) mW")
-            print("+ GPU Power: \(stats.GPUPower.get().last ?? 0) mW; average \(stats.GPUPower.getAverage())mW; peak \(stats.GPUPower.getMax()) mW")
-            print("+ ANE Usage: \(stats.ANEPower.get().last ?? 0) mW; average \(stats.ANEPower.getAverage())mW; peak \(stats.ANEPower.getMax()) mW")
-            print("---------------------------------------------")
-            print("Package Power: \(stats.PackagePower) mW; average \(stats.PackagePower.getAverage()) mW; peak \(stats.PackagePower.getMax()) mW; took \(eta).")
-            print("---------------------------------------------")
+            print(cursorPosition.copy())
+            print(GetLabel(text: "Package Power (CPU + GPU + ANE): \(stats.PackagePower.get().last ?? 0) mW; avg \(stats.PackagePower.getAverage()) mW; peak \(stats.PackagePower.getMax()) mW", depth: 1, width: column, isTab: true, position: &cursorPosition))
+            print(GetLabel(text: "CPU: \(stats.CPUPower.get().last ?? 0) mW; avg \(stats.CPUPower.getAverage())mW; peak \(stats.CPUPower.getMax()) mW", depth: 2, width: column / 3, isTab: true, position: &cursorPosition).dropLast(2), terminator: "")
+            print(GetLabel(text: "GPU: \(stats.GPUPower.get().last ?? 0) mW; avg \(stats.GPUPower.getAverage())mW; peak \(stats.GPUPower.getMax()) mW",   depth: 2, width: column / 3, isTab: true, position: &cursorPosition).dropLast(2).dropFirst(2), terminator: "")
+            print(GetLabel(text: "ANE: \(stats.ANEPower.get().last ?? 0) mW; avg \(stats.ANEPower.getAverage())mW; peak \(stats.ANEPower.getMax()) mW", depth: 2, width: column / 3, isTab: true, position: &cursorPosition).dropFirst(2))
+            moveCursor(row: rows / 2, col: column / 2, position: &cursorPosition)
+            print(cursorPosition.copy())
         }
     }
 }
