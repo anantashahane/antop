@@ -54,6 +54,13 @@ class LimitedArray<T: Comparable & Numeric> : CustomStringConvertible {
     func getMax() -> T {
         return self.max ?? T.zero
     }
+
+    func getLast() -> T {
+        if self.data.count == 0 {
+            return T.zero
+        }
+        return self.data[(self.size + pointer - 1) % self.size]
+    }
 }
 
 struct Statistics {
@@ -256,73 +263,45 @@ func getTerminalSize() -> (rows: Int, cols: Int)? {
     return (rows: Int(w.ws_row), cols: Int(w.ws_col))
 }
 
-// struct CursorPosition {
-//     var x : Int
-//     var y: Int
-// }
-
-// func moveCursor(row: Int, col: Int, position: inout CursorPosition) {
-//     print("\u{1B}[\(row);\(col)H", terminator: "")
-//     position.x = col
-//     position.y = row
-// }
+func GetUI(row: Int, column: Int, stats: inout Statistics, buffer: inout ScreenBuffer) -> String {
+    let headStack = VStack(frame:Frame(start: (row: 1, column: 1), end: (row: row, column: column)), name: "\(stats.machineName ?? "Unknown") @Temperature: \(stats.thermalPressure)")
+    
+    let efficiencyCluster = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), title: "E-Cores: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz", progress: stats.highEffeciencyUtility)
+    let performanceCluster = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), title: "P-Cores: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz", progress: stats.highPerformanceUtility)
+    let gpuStats = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), title: "GPU: \(stats.gpuUtility)% @\(stats.gpuFrequency) MHz", progress: stats.gpuUtility)
 
 
-// func GetLabel(text: String, depth: Int, width: Int, isTab: Bool, position: inout CursorPosition) -> String {
-//     position.x = 0
-//     position.y += 1
-//     if isTab {
-//         var returnString = String(repeating: UIBlock.VerticalLine.rawValue, count: depth) + UIBlock.TopLeftCorner.rawValue
-//         returnString += " \(text)\(String(repeating: UIBlock.HorizontalLine.rawValue, count: width - (2 * depth) - 3 - text.count))\(UIBlock.TopRightCorner.rawValue)\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
-//         return returnString
-//     }
-//     return "\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth)) \(text)\(String(repeating: " ", count: width - (2 * depth) - 1 - text.count))\(String(repeating: UIBlock.VerticalLine.rawValue, count: depth))"
-// }
+    let hstack = HStack(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), 
+    name: "Package Power: \(stats.PackagePower.getLast()) mW; avg \(stats.PackagePower.getAverage()) mW; peak: \(stats.PackagePower.getMax()) mW",
+    withBorder: true
+    )
+    let gpuPowerHistory = PowerChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), 
+        title: "GPU: \(stats.GPUPower.getLast())mW; avg: \(stats.GPUPower.getAverage()) mW; peak: \(stats.GPUPower.getMax()) mW", 
+        history: stats.GPUPower)
+    let cpuPowerHistory = PowerChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), 
+        title: "CPU: \(stats.CPUPower.getLast())mW; avg: \(stats.CPUPower.getAverage()) mW; peak: \(stats.CPUPower.getMax()) mW", 
+        history: stats.CPUPower)
+    let anePowerHistory = PowerChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), 
+        title: "ANE: \(stats.ANEPower.getLast())mW; avg: \(stats.ANEPower.getAverage()) mW; peak: \(stats.ANEPower.getMax()) mW", 
+        history: stats.ANEPower)
+    
+    hstack.addChild(view: cpuPowerHistory)
+    hstack.addChild(view: gpuPowerHistory)
+    hstack.addChild(view: anePowerHistory)
 
-// func GetBottomRule(depth: Int, width: Int, position: inout CursorPosition) -> String {
-//     position.x = 0
-//     position.y += 1
-//     let extrimities = String(repeating: UIBlock.VerticalLine.rawValue, count: depth - 1)
-//     return (extrimities + 
-//             UIBlock.BottomLeftCorner.rawValue + 
-//             String(repeating: UIBlock.HorizontalLine.rawValue, count: width - (2 * depth)) +
-//             UIBlock.BottomRightCorner.rawValue + 
-//             extrimities
-//             )
-// }
-
-// func GetBar(ratio: Double, width: Int, depth: Int, position: inout CursorPosition) -> String {
-//     position.x = 0
-//     position.y += 1
-//     let clampedRatio = max(0, min(100, ratio)) // ensure 0..100
-//     let len = width - (2 * depth)  // inner bar length
-//     let filledLength = Int(Double(len) * clampedRatio / 100.0)
-//     let emptyLength = len - filledLength
-//     let prefix = String(repeating: UIBlock.VerticalLine.rawValue, count: depth) 
-//     return prefix + String(repeating: "█", count: filledLength) + String(repeating: "░", count: emptyLength) + prefix
-// }
-
-// func GetLabelledBar(label: String, percentage: Double, width: Int, depth: Int, position: inout CursorPosition) -> String {
-//     var text = GetLabel(text: label, depth: depth, width: width, isTab: true, position: &position)
-//     text += GetBar(ratio:percentage, width: width, depth: depth + 1, position: &position)
-//     text += GetBottomRule(depth: depth + 1, width: width, position: &position)
-//     return text
-// }
-
-func GetUI(row: Int, column: Int, stats: inout Statistics) -> String {
-    let headStack = VStack(frame:Frame(start: (row: 1, column: 1), end: (row: row, column: column)), named: stats.machineName ?? "Unknown")
-    let efficiencyCluster = VStack(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), named: "E-Cores: \(stats.highEffeciencyUtility)% @\(stats.highEffeciencyFrequency) MHz")
-    let performanceCluster = VStack(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), named: "P-Cores: \(stats.highPerformanceUtility)% @\(stats.highPerformanceFrequency) MHz")
     headStack.addChild(view: efficiencyCluster)
     headStack.addChild(view: performanceCluster)
-    return headStack.draw()
+    headStack.addChild(view: gpuStats)
+    headStack.addChild(view: hstack)
+    headStack.layout()
+    headStack.render(into: &buffer)
+    return buffer.GetScreen()
 }
 
 @available(macOS 12, *)
 func PresentData() async {
     var stats = Statistics()
     // var cursorPosition = CursorPosition(x: 0, y: 1)
-    print("\u{001B}[2J") //Clear screen
     var buffer = ScreenBuffer(width: 10, height: 10)
     for await line in StreamPowerBlocks() {
         CaptureMachineName(from: line, into: &stats)
@@ -332,8 +311,8 @@ func PresentData() async {
         CapturePower(from: line, into: &stats)
         CaputreThermalPressure(from: line, into: &stats)
         if let (row, column) = getTerminalSize() {
-            print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
-            print(GetUI(row: row, column: column, stats: &stats))
+            buffer.update(width: column, height: row)
+            print(GetUI(row: row, column: column, stats: &stats, buffer: &buffer))
         }
     }
 }
