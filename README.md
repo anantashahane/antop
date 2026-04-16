@@ -9,7 +9,7 @@ Antop is a lightweight, high-performance macOS CLI tool for monitoring system po
 	* ✅  Stream powermetrics data in real-time.
 	* ✅  Parse and process metrics incrementally.
 	* ✅  Present the relevant graphs in terminal.
-	* ⏳  Efficient Hawk-TUI implementation.
+	* ✅  Efficient Hawk-TUI implementation.
 	* 🤔  Parameterise Executable. 
 
 ## 💡 Why Antop?
