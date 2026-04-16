@@ -1,6 +1,12 @@
 import Foundation
 import Darwin
 
+extension Double {
+    func roundedString(_ places: Int = 2) -> String {
+        String(format: "%.\(places)f", self)
+    }
+}
+
 enum UIBlock {
     static let TopLeftCorner = "╭"
     static let TopRightCorner = "╮"
@@ -112,21 +118,38 @@ protocol View {
     var height: Int? { get }
     func layout()
     func render(into buffer: inout ScreenBuffer)
+    func Update(stats: inout Statistics)
 }
 
 class VStack: View {
     var frame: Frame
     private var children: [View] = []
-    var name: String?
+    let name: String?
     let height: Int?
+    var title: String
     init(frame: Frame, name: String? = nil) {
         self.frame = frame
         self.name = name
         self.height = nil
+        self.title = ""
     }
 
     func addChild(view: View) {
         children.append(view)
+    }
+
+    func Update(stats: inout Statistics) {
+        if let name = self.name {
+            switch name {
+            case "root":
+                self.title = "\(stats.machineName ?? "Some Mac") @Temperature \(stats.thermalPressure)"
+            default:
+                self.title = ""
+            }
+        }
+        for child in self.children {
+            child.Update(stats: &stats)
+        }
     }
 
     func layout() {
@@ -187,14 +210,12 @@ class VStack: View {
         drawBorder(frame: frame, into: &buffer)
 
         // Title
-        if let name = name {
-            for (i, ch) in name.enumerated() {
-                buffer.set(
-                    row: frame.start.row,
-                    col: frame.start.column + 1 + i,
-                    char: ch
-                )
-            }
+        for (i, ch) in title.enumerated() {
+            buffer.set(
+                row: frame.start.row,
+                col: frame.start.column + 1 + i,
+                char: ch
+            )
         }
 
         for child in children {
@@ -209,11 +230,13 @@ class HStack: View {
     var name: String?
     let height: Int?
     let withBorder: Bool
+    var title : String
     init(frame: Frame, name: String? = nil, withBorder: Bool = false) {
         self.frame = frame
         self.name = name
         self.withBorder = withBorder
         self.height = nil
+        self.title = ""
     }
 
     func addChild(view: View) {
@@ -239,18 +262,31 @@ class HStack: View {
         }
     }
 
+    func Update(stats: inout Statistics) {
+        if let name = self.name {
+            switch name {
+                case "CPU": self.title = "CPU"
+                case "GPU": self.title = "GPU"
+                case "ANE": self.title = "ANE"
+                case "Package Power": self.title = "Package Power: \((Double(stats.PackagePower.getLast()) / 1000).roundedString()) W; avg: \((stats.PackagePower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.PackagePower.getMax()) / 1000).roundedString()) W."
+                default: self.title = ""
+            }
+        }
+        for child in self.children {
+            child.Update(stats: &stats)
+        }
+    }
+
     func render(into buffer: inout ScreenBuffer) {
         drawBorder(frame: frame, into: &buffer)
 
         // Title
-        if let name = name {
-            for (i, ch) in name.enumerated() {
-                buffer.set(
-                    row: frame.start.row,
-                    col: frame.start.column + 1 + i,
-                    char: ch
-                )
-            }
+        for (i, ch) in title.enumerated() {
+            buffer.set(
+                row: frame.start.row,
+                col: frame.start.column + 1 + i,
+                char: ch
+            )
         }
 
         for child in children {
@@ -261,13 +297,15 @@ class HStack: View {
 
 class BarChart: View {
     var frame: Frame
+    var name: String?
     var title: String
     var progress: Double
     let height: Int?
 
-    init(frame: Frame, title: String, progress: Double) {
+    init(frame: Frame, name: String, progress: Double) {
         self.frame = frame
-        self.title = title
+        self.name = name
+        self.title = ""
         self.progress = progress
         self.height = 3
     }
@@ -276,9 +314,18 @@ class BarChart: View {
 
     }
 
-    func Update(title: String, progress: Double) {
-        self.title = title
-        self.progress = progress
+    func Update(stats: inout Statistics) {
+        if let name = self.name {
+            switch(name) {
+                case "E-Cores": self.title = "E-Cores: \(stats.highEffeciencyUtility)%; @\(stats.highEffeciencyFrequency) MHz"
+                    self.progress = stats.highEffeciencyUtility
+                case "P-Cores": self.title = "P-Cores: \(stats.highPerformanceUtility)%; @\(stats.highPerformanceFrequency) MHz"
+                    self.progress = stats.highPerformanceUtility
+                case "GPU": self.title = "GPU: \(stats.gpuUtility)%; @\(stats.gpuFrequency) MHz"
+                    self.progress = stats.gpuUtility
+                default: self.title = "Unknown"
+            }
+        }
     }
 
     func render(into buffer: inout ScreenBuffer) {
@@ -304,17 +351,30 @@ class BarChart: View {
 
 class PowerChart: View {
     var frame: Frame
+    let name: String?
     var title: String
     var history: LimitedArray<Int>
     let height: Int?
-    init(frame: Frame, title: String, history: LimitedArray<Int>) {
+    init(frame: Frame, name: String, history: LimitedArray<Int>) {
         self.frame = frame
-        self.title = title
+        self.name = name
+        self.title = ""
         self.history = history
         self.height = nil
     }
 
     func layout() {}
+
+    func Update(stats: inout Statistics) {
+        if let name = name {
+            switch name {
+            case "CPU": self.title = "CPU Power: \((Double(stats.CPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.CPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.CPUPower.getMax()) / 1000).roundedString()) W."
+            case "GPU": self.title = "GPU Power: \((Double(stats.GPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.GPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.GPUPower.getMax()) / 1000).roundedString()) W."
+            case "ANE": self.title = "ANE Power: \((Double(stats.ANEPower.getLast()) / 1000).roundedString()) W; avg: \((stats.ANEPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.ANEPower.getMax()) / 1000).roundedString()) W."
+            default: self.title = "Unknown."
+            }
+        }
+    }
 
     func render(into buffer: inout ScreenBuffer) {
         drawBorder(frame: frame, into: &buffer)
