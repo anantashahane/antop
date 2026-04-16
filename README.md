@@ -29,7 +29,6 @@ Antop addresses these issues by streaming and processing data incrementally, usi
 A huge thank you to everyone who supports, inspires, or provides feedback on this project. Your encouragement keeps this initiative moving forward.
 
 ## 📦 Coming soon...
-*   Power graphs.
 *	Homebrew distribution for easy installation
 
 ## 🛠️ How to Run (Development)
