@@ -263,7 +263,7 @@ func getTerminalSize() -> (rows: Int, cols: Int)? {
     return (rows: Int(w.ws_row), cols: Int(w.ws_col))
 }
 
-func BuildUI(headStack: inout VStack, stats: inout Statistics, buffer: inout ScreenBuffer) {
+func BuildUI(headStack: inout VStack, stats: inout Statistics, buffer: inout ScreenBuffer, ane: Bool) {
     let efficiencyCluster = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), name: "E-Cores", progress: stats.highEffeciencyUtility)
     let performanceCluster = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), name: "P-Cores", progress: stats.highPerformanceUtility)
     let gpuStats = BarChart(frame: Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), name: "GPU", progress: stats.gpuUtility)
@@ -276,8 +276,10 @@ func BuildUI(headStack: inout VStack, stats: inout Statistics, buffer: inout Scr
     
     hstack.addChild(view: cpuPowerHistory)
     hstack.addChild(view: gpuPowerHistory)
-    hstack.addChild(view: anePowerHistory)
-
+    if ane {
+        hstack.addChild(view: anePowerHistory)
+    }
+    
     headStack.addChild(view: efficiencyCluster)
     headStack.addChild(view: performanceCluster)
     headStack.addChild(view: gpuStats)
@@ -296,11 +298,11 @@ func UpdateView(line: String, into stats: inout Statistics, ui: any View) {
 }
 
 @available(macOS 12, *)
-func PresentData() async {
+func PresentData(ane: Bool = true) async {
     var stats = Statistics()
     var buffer = ScreenBuffer(width: 10, height: 10)
     var headStack = VStack(frame:Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), name: "root")
-    BuildUI(headStack: &headStack, stats: &stats, buffer: &buffer)
+    BuildUI(headStack: &headStack, stats: &stats, buffer: &buffer, ane: ane)
     
     for await line in StreamPowerBlocks() {
         UpdateView(line: line, into: &stats, ui: headStack)

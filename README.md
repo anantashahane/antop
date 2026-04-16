@@ -31,18 +31,42 @@ A huge thank you to everyone who supports, inspires, or provides feedback on thi
 ## 📦 Coming soon...
 *	Homebrew distribution for easy installation
 
-## 🛠️ How to Run (Development)
 
-### Clone the project
+## 🛠️ Development Setup
+
+### Clone the repo
 ```bash
 git clone https://github.com/anantashahane/antop.git
 cd antop/antop-cli
 ```
-###  Build and run
-* ⚠️ `powermetrics` requires sudo, so you may need:
+
+### Build & run
+```bash
+sudo swift run
+```
+* ⚠️ powermetrics requires elevated privileges.
+
+
+## 📦 Installation
+
+macOS only
+
+* From the project root:
+  ```bash
+  bash install
   ```
-  sudo swift run
-  ```
+* Verify installation:
+	```bash
+    which antop
+	```
+  * If a path is returned, installation succeeded.
+* 🚀 Usage
+	```bash
+    antop help
+	```
+* ⚠️ Requires sudo (uses powermetrics under the hood)
+
+* Happy hacking.
 
 
 ## 📝 Contribution
