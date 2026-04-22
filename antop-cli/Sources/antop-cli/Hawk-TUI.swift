@@ -94,20 +94,19 @@ struct ScreenBuffer {
                 repeating: Array(repeating: " ", count: width), 
                 count: height
             )
-            ClearScreen()
         }
     }
 
-    func ClearScreen() {
-        print("\u{001B}[2J")
-        print("\u{001B}[3J\u{001B}[2J\u{001B}[H", terminator: "")
+    func ClearScreen() -> String {
+        return "\u{001B}[2J"
+    }
+
+    func MoveToHome() -> String {
+        return "\u{001B}[H"
     }
 
     func GetScreen() -> String {
-        ClearScreen()
-        let screen = self.cells.map({String($0)}).joined(separator: "\n")
-        return "\(screen)"
-
+        return "\(self.MoveToHome())\(self.cells.map({String($0)}).joined(separator: "\n"))"
     }
 }
 

@@ -303,12 +303,12 @@ func PresentData(ane: Bool = true) async {
     var buffer = ScreenBuffer(width: 10, height: 10)
     var headStack = VStack(frame:Frame(start: (row: 1, column: 1), end: (row: 10, column: 10)), name: "root")
     BuildUI(headStack: &headStack, stats: &stats, buffer: &buffer, ane: ane)
-    
+    print(buffer.ClearScreen())
     for await line in StreamPowerBlocks() {
         UpdateView(line: line, into: &stats, ui: headStack)
         if let (row, column) = getTerminalSize() {
             buffer.update(width: column, height: row)
-            headStack.frame = Frame(start: (row: 1, column: 1), end: (row: row - 1, column: column))
+            headStack.frame = Frame(start: (row: 1, column: 1), end: (row: row, column: column))
             headStack.layout()
             headStack.render(into: &buffer)
             print(buffer.GetScreen(), terminator: "")
