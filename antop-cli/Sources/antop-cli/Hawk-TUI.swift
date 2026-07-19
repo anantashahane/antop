@@ -338,7 +338,7 @@ class BarChart: View {
                 self.progress = stats.gpuUtility
             case "Memory":
                 self.title =
-                    "Memory: (Physical: \(String(format: "%.2f", stats.usedMemory)) / \(stats.totalMemory) GB) (Swap: \(String(format: "%.2f", stats.usedSwapMemory)) / \(String(format: "%.2f", stats.totalSwapMemory)) GB)."
+                    "Memory: (Physical: \(String(format: "%.2f", stats.usedMemory)) / \(stats.totalMemory) GB; Swap: \(String(format: "%.2f", stats.usedSwapMemory)) / \(String(format: "%.2f", stats.totalSwapMemory)) GB)."
                 self.progress = stats.usedMemory / stats.totalMemory * 100
             default: self.title = "Unknown"
             }
