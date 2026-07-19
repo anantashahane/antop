@@ -1,5 +1,5 @@
-import Foundation
 import Darwin
+import Foundation
 
 extension Double {
     func roundedString(_ places: Int = 2) -> String {
@@ -18,24 +18,30 @@ enum UIBlock {
     static let Translucent = "░"
 }
 
-
 //#MARK: - Helper Functions
 func drawBorder(frame: Frame, into buffer: inout ScreenBuffer) {
     let w = frame.width
 
     // Top
-    buffer.set(row: frame.start.row, col: frame.start.column, char: Character(UIBlock.TopLeftCorner))
+    buffer.set(
+        row: frame.start.row, col: frame.start.column, char: Character(UIBlock.TopLeftCorner))
     for i in 1..<(w - 1) {
-        buffer.set(row: frame.start.row, col: frame.start.column + i, char: Character(UIBlock.HorizontalLine))
+        buffer.set(
+            row: frame.start.row, col: frame.start.column + i,
+            char: Character(UIBlock.HorizontalLine))
     }
     buffer.set(row: frame.start.row, col: frame.end.column, char: Character(UIBlock.TopRightCorner))
 
     // Bottom
-    buffer.set(row: frame.end.row, col: frame.start.column, char: Character(UIBlock.BottomLeftCorner))
+    buffer.set(
+        row: frame.end.row, col: frame.start.column, char: Character(UIBlock.BottomLeftCorner))
     for i in 1..<(w - 1) {
-        buffer.set(row: frame.end.row, col: frame.start.column + i, char: Character(UIBlock.HorizontalLine))
+        buffer.set(
+            row: frame.end.row, col: frame.start.column + i, char: Character(UIBlock.HorizontalLine)
+        )
     }
-    buffer.set(row: frame.end.row, col: frame.end.column, char: Character(UIBlock.BottomRightCorner))
+    buffer.set(
+        row: frame.end.row, col: frame.end.column, char: Character(UIBlock.BottomRightCorner))
 
     // Sides
     for row in (frame.start.row + 1)..<frame.end.row {
@@ -43,7 +49,6 @@ func drawBorder(frame: Frame, into buffer: inout ScreenBuffer) {
         buffer.set(row: row, col: frame.end.column, char: Character(UIBlock.VerticalLine))
     }
 }
-
 
 struct Frame {
     var start: (row: Int, column: Int)
@@ -81,7 +86,8 @@ struct ScreenBuffer {
 
     mutating func set(row: Int, col: Int, char: Character) {
         guard row >= 1, col >= 1,
-              row <= height, col <= width else { return }
+            row <= height, col <= width
+        else { return }
 
         cells[row - 1][col - 1] = char
     }
@@ -91,7 +97,7 @@ struct ScreenBuffer {
             self.width = width
             self.height = height
             self.cells = Array(
-                repeating: Array(repeating: " ", count: width), 
+                repeating: Array(repeating: " ", count: width),
                 count: height
             )
         }
@@ -109,8 +115,6 @@ struct ScreenBuffer {
         return "\(self.MoveToHome())\(self.cells.map({String($0)}).joined(separator: "\n"))"
     }
 }
-
-
 
 protocol View {
     var frame: Frame { get set }
@@ -141,7 +145,8 @@ class VStack: View {
         if let name = self.name {
             switch name {
             case "root":
-                self.title = "\(stats.machineName ?? "Some Mac") @Temperature \(stats.thermalPressure)"
+                self.title =
+                    "\(stats.machineName ?? "Some Mac") @Temperature \(stats.thermalPressure)"
             default:
                 self.title = ""
             }
@@ -168,7 +173,8 @@ class VStack: View {
         }
 
         let remainingHeight = max(0, inner.height - fixedHeight)
-        let flexibleHeight = flexibleCount > 0
+        let flexibleHeight =
+            flexibleCount > 0
             ? remainingHeight / flexibleCount
             : 0
 
@@ -183,8 +189,7 @@ class VStack: View {
             } else {
                 // last flexible child absorbs rounding error
                 let isLastFlexible =
-                    child.height == nil &&
-                    children[(index + 1)...].allSatisfy { $0.height != nil }
+                    child.height == nil && children[(index + 1)...].allSatisfy { $0.height != nil }
 
                 if isLastFlexible {
                     h = inner.end.row - currentRow + 1
@@ -229,7 +234,7 @@ class HStack: View {
     var name: String?
     let height: Int?
     let withBorder: Bool
-    var title : String
+    var title: String
     init(frame: Frame, name: String? = nil, withBorder: Bool = false) {
         self.frame = frame
         self.name = name
@@ -242,14 +247,15 @@ class HStack: View {
         children.append(view)
     }
 
-    func layout() { 
+    func layout() {
         let inner = frame.inset(size: self.withBorder ? 1 : 0)
         guard !children.isEmpty else { return }
 
         let childWidth = inner.width / children.count
         for i in 0..<children.count {
             let startColumn = inner.start.column + i * childWidth
-            let endColumn = (i == children.count - 1)
+            let endColumn =
+                (i == children.count - 1)
                 ? inner.end.column
                 : startColumn + childWidth - 1
 
@@ -264,11 +270,14 @@ class HStack: View {
     func Update(stats: inout Statistics) {
         if let name = self.name {
             switch name {
-                case "CPU": self.title = "CPU"
-                case "GPU": self.title = "GPU"
-                case "ANE": self.title = "ANE"
-                case "Package Power": self.title = "Package Power: \((Double(stats.PackagePower.getLast()) / 1000).roundedString()) W; avg: \((stats.PackagePower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.PackagePower.getMax()) / 1000).roundedString()) W."
-                default: self.title = ""
+            case "CPU": self.title = "CPU"
+            case "GPU": self.title = "GPU"
+            case "ANE": self.title = "ANE"
+            case "Package Power":
+                self.title =
+                    "Package Power: \((Double(stats.PackagePower.getLast()) / 1000).roundedString()) W; avg: \((stats.PackagePower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.PackagePower.getMax()) / 1000).roundedString()) W."
+            case "Memory": self.title = "Memory Usage and Pressure."
+            default: self.title = ""
             }
         }
         for child in self.children {
@@ -315,14 +324,23 @@ class BarChart: View {
 
     func Update(stats: inout Statistics) {
         if let name = self.name {
-            switch(name) {
-                case "E-Cores": self.title = "E-Cores: \(stats.highEffeciencyUtility)%; @\(stats.highEffeciencyFrequency) MHz"
-                    self.progress = stats.highEffeciencyUtility
-                case "P-Cores": self.title = "P-Cores: \(stats.highPerformanceUtility)%; @\(stats.highPerformanceFrequency) MHz"
-                    self.progress = stats.highPerformanceUtility
-                case "GPU": self.title = "GPU: \(stats.gpuUtility)%; @\(stats.gpuFrequency) MHz"
-                    self.progress = stats.gpuUtility
-                default: self.title = "Unknown"
+            switch name {
+            case "E-Cores":
+                self.title =
+                    "E-Cores: \(stats.highEffeciencyUtility)%; @\(stats.highEffeciencyFrequency) MHz"
+                self.progress = stats.highEffeciencyUtility
+            case "P-Cores":
+                self.title =
+                    "P-Cores: \(stats.highPerformanceUtility)%; @\(stats.highPerformanceFrequency) MHz"
+                self.progress = stats.highPerformanceUtility
+            case "GPU":
+                self.title = "GPU: \(stats.gpuUtility)%; @\(stats.gpuFrequency) MHz"
+                self.progress = stats.gpuUtility
+            case "Memory":
+                self.title =
+                    "Memory: (Physical \(String(format: "%.2f", stats.usedMemory)) / \(stats.totalMemory) GB) (Swap: \(String(format: "%.2f", stats.usedSwapMemory)) / \(String(format: "%.2f", stats.totalSwapMemory)) GB)."
+                self.progress = stats.usedMemory / stats.totalMemory * 100
+            default: self.title = "Unknown"
             }
         }
     }
@@ -337,13 +355,17 @@ class BarChart: View {
         var active = Int(Double(inset.width) * progress)
         for column in inset.start.column...inset.end.column {
             for row in inset.start.row...inset.end.row {
-                buffer.set(row: row, col: column, char: Character(active > 0 ? UIBlock.Solid : UIBlock.Translucent))
+                buffer.set(
+                    row: row, col: column,
+                    char: Character(active > 0 ? UIBlock.Solid : UIBlock.Translucent))
             }
             active -= 1
         }
 
         for (index, character) in self.title.enumerated() {
-            buffer.set(row: self.frame.start.row, col: self.frame.start.column + 1 + index, char: character)
+            buffer.set(
+                row: self.frame.start.row, col: self.frame.start.column + 1 + index, char: character
+            )
         }
     }
 }
@@ -367,9 +389,15 @@ class PowerChart: View {
     func Update(stats: inout Statistics) {
         if let name = name {
             switch name {
-            case "CPU": self.title = "CPU Power: \((Double(stats.CPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.CPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.CPUPower.getMax()) / 1000).roundedString()) W."
-            case "GPU": self.title = "GPU Power: \((Double(stats.GPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.GPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.GPUPower.getMax()) / 1000).roundedString()) W."
-            case "ANE": self.title = "ANE Power: \((Double(stats.ANEPower.getLast()) / 1000).roundedString()) W; avg: \((stats.ANEPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.ANEPower.getMax()) / 1000).roundedString()) W."
+            case "CPU":
+                self.title =
+                    "CPU Power: \((Double(stats.CPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.CPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.CPUPower.getMax()) / 1000).roundedString()) W."
+            case "GPU":
+                self.title =
+                    "GPU Power: \((Double(stats.GPUPower.getLast()) / 1000).roundedString()) W; avg: \((stats.GPUPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.GPUPower.getMax()) / 1000).roundedString()) W."
+            case "ANE":
+                self.title =
+                    "ANE Power: \((Double(stats.ANEPower.getLast()) / 1000).roundedString()) W; avg: \((stats.ANEPower.getAverage() / 1000).roundedString()) W; peak \((Double(stats.ANEPower.getMax()) / 1000).roundedString()) W."
             default: self.title = "Unknown."
             }
         }
@@ -392,7 +420,7 @@ class PowerChart: View {
 
         // Start so that the LAST value ends at the right edge
         let startColumn = inset.end.column - visibleCount + 1
-        
+
         for row in inset.start.row...inset.end.row {
             for column in inset.start.column...inset.end.column {
                 buffer.set(row: row, col: column, char: Character(UIBlock.Translucent))
