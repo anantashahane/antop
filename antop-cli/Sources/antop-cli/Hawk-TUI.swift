@@ -410,7 +410,7 @@ class PowerChart: View {
         let values = history.get()
         guard !values.isEmpty else { return }
 
-        let maxVal = max(500, history.getMax())
+        let maxVal = max(5000, history.getMax())
         let height = inset.height
         let width = inset.width
 
